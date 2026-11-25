@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- ✏️ Si cambias el color de tema, cámbialo también en manifest.json -->
+<meta name="theme-color" content="#7c3aed">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>Memorama Estelar</title>
+<style>
+:root{
+  --theme:#7c3aed;
+  --bg:#f5f3ff;
+  --card:#ffffff;
+  --text:#1f1b2e;
+  --ok:#16a34a;
+  --bad:#dc2626;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.screen{display:none;padding:16px;max-width:720px;margin:0 auto}
+.screen.active{display:block}
+h1,h2{margin:.3em 0}
+button{font:inherit;cursor:pointer}
+.btn{background:var(--theme);color:#fff;border:0;border-radius:12px;padding:12px 18px;font-weight:700}
+.btn.sec{background:#fff;color:var(--theme);border:2px solid var(--theme)}
+.btn.sm{padding:8px 12px;font-size:.9rem}
+.panel{background:var(--card);border-radius:16px;padding:14px;margin:12px 0;box-shadow:0 2px 8px #0001}
+.panel h3{margin:0 0 8px}
+label{display:block;margin:8px 0 4px;font-weight:600}
+input[type=text],input[type=url],textarea,select{width:100%;padding:10px;border:1px solid #c4b5fd;border-radius:10px;font:inherit}
+textarea{min-height:80px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>*{flex:0 0 auto}
+.chip{padding:8px 14px;border-radius:999px;border:2px solid var(--theme);background:#fff;color:var(--theme);font-weight:700}
+.chip.on{background:var(--theme);color:#fff}
+
+/* BIENVENIDA */
+#welcome{text-align:center;padding-top:12vh}
+#welcome .logo{width:110px;height:110px;border-radius:26px;box-shadow:0 6px 20px #0003}
+#welcome h1{font-size:2rem;color:var(--theme)}
+#welcome .team{font-size:1.3rem;font-weight:700}
+#welcome .phrase{font-style:italic;opacity:.75;margin:10px 0 28px}
+
+/* TABLERO */
+.hud{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:700;margin-bottom:6px}
+.hud span{background:#fff;padding:6px 12px;border-radius:999px;box-shadow:0 1px 4px #0002}
+#turnBanner{text-align:center;font-weight:800;padding:8px;border-radius:12px;background:var(--theme);color:#fff;margin:6px 0}
+#scoreboard{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+.score{flex:1;min-width:90px;background:#fff;border-radius:12px;padding:8px;text-align:center;border:3px solid transparent;box-shadow:0 1px 4px #0002}
+.score.active{border-color:var(--theme)}
+.score b{display:block;font-size:1.4rem}
+#board{display:grid;gap:8px;margin-top:10px}
+.card{position:relative;aspect-ratio:1/1;background:none;border:0;padding:0;perspective:600px}
+.inner{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .4s}
+.card.flip .inner,.card.done .inner{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;border-radius:12px;backface-visibility:hidden;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 2px 6px #0003}
+.front{background:#fff;transform:rotateY(180deg);font-size:clamp(1.6rem,9vw,3rem)}
+.front img{width:100%;height:100%;object-fit:cover}
+.front .broken{display:flex;flex-direction:column;align-items:center;font-size:.7rem;text-align:center;color:#666;padding:4px}
+.front .broken i{font-size:1.8rem;font-style:normal}
+.card.done .front{outline:3px solid var(--ok)}
+.num{position:absolute;top:4px;left:4px;z-index:3;background:#000a;color:#fff;font-size:.7rem;font-weight:800;border-radius:8px;padding:1px 6px;pointer-events:none}
+body.nonum .num{display:none}
+
+/* Dorsos */
+.back{background-size:cover;background-position:center;color:#fff;font-size:1.6rem;font-weight:800}
+.back.t-dots{background-image:radial-gradient(#fff6 20%,transparent 21%);background-size:14px 14px}
+.back.t-stripes{background-image:repeating-linear-gradient(45deg,#fff3 0 8px,transparent 8px 16px)}
+.back.t-checker{background-image:conic-gradient(#fff3 25%,transparent 0 50%,#fff3 0 75%,transparent 0);background-size:20px 20px}
+.back.t-waves{background-image:radial-gradient(circle at 100% 50%,transparent 20%,#fff3 21% 30%,transparent 31%),radial-gradient(circle at 0 50%,transparent 20%,#fff3 21% 30%,transparent 31%);background-size:24px 24px}
+.back img{width:70%;height:70%;object-fit:contain}
+#backPreview{width:80px;height:80px;border-radius:12px;position:relative;overflow:hidden}
+#backPreview .face{position:absolute;inset:0;transform:none}
+
+/* RESULTADOS */
+.res{display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid #0001;font-weight:700}
+.res.win{background:#dcfce7;border-radius:10px}
+#winMsg{font-size:1.3rem;font-weight:800;text-align:center;margin:10px 0}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- ================= BIENVENIDA ================= -->
+<section id="welcome" class="screen active">
+  <img id="wLogo" class="logo" src="icon-192.png" alt="logo">
+  <h1 id="wApp"></h1>
+  <div class="team" id="wTeam"></div>
+  <div class="phrase" id="wPhrase"></div>
+  <button class="btn" id="btnEnter">Entrar ▶</button>
+</section>
+
+<!-- ================= CONFIGURACIÓN ================= -->
+<section id="setup" class="screen">
+  <h2>⚙️ Configura tu partida</h2>
+
+  <div class="panel">
+    <h3>Dificultad</h3>
+    <div class="row" id="diffBtns">
+      <button class="chip" data-d="4">Fácil</button>
+      <button class="chip" data-d="8">Medio</button>
+      <button class="chip" data-d="12">Difícil</button>
+    </div>
+    <label for="pairs">Parejas: <b id="pairsVal">6</b></label>
+    <input type="range" id="pairs" min="4" max="16" value="6">
+    <small id="pairsHint"></small>
+  </div>
+
+  <div class="panel">
+    <h3>Jugadores</h3>
+    <div class="row" id="playerBtns">
+      <button class="chip" data-p="1">1</button>
+      <button class="chip" data-p="2">2</button>
+      <button class="chip" data-p="3">3</button>
+      <button class="chip" data-p="4">4</button>
+    </div>
+    <div id="names"></div>
+  </div>
+
+  <div class="panel">
+    <h3>🎴 Reverso de las cartas</h3>
+    <div class="row">
+      <div id="backPreview"></div>
+      <select id="backType">
+        <option value="color">Color sólido</option>
+        <option value="image">Imagen (link)</option>
+        <option value="texture">Textura</option>
+        <option value="logo">Logo del equipo</option>
+      </select>
+    </div>
+    <div id="backOpts"></div>
+  </div>
+
+  <div class="panel">
+    <h3>🖼️ Caras con imágenes propias</h3>
+    <label for="urls">Un link por línea (Unsplash, Pixabay…). Si no pones, se usan emojis.</label>
+    <textarea id="urls" placeholder="https://images.unsplash.com/..."></textarea>
+    <label><input type="checkbox" id="numbered" checked> Mostrar número en cada carta</label>
+  </div>
+
+  <div class="row">
+    <button class="btn" id="btnStart">▶ Iniciar partida</button>
+    <button class="btn sec" id="btnBackW">Inicio</button>
+  </div>
+</section>
+
+<!-- ================= JUEGO ================= -->
+<section id="game" class="screen">
+  <div class="hud">
+    <span>⏱️ <b id="timer">00:00</b></span>
+    <span>👆 Movimientos: <b id="moves">0</b></span>
+    <span id="recordBox">🏆 <b id="record">–</b></span>
+  </div>
+  <div id="turnBanner"></div>
+  <div id="scoreboard"></div>
+  <div id="board"></div>
+  <div class="row" style="margin-top:12px">
+    <button class="btn sec sm" id="btnRestart">🔄 Reiniciar</button>
+    <button class="btn sec sm" id="btnMenu">⚙️ Configuración</button>
+  </div>
+</section>
+
+<!-- ================= RESULTADOS ================= -->
+<section id="end" class="screen">
+  <h2 style="text-align:center">🎉 ¡Partida terminada!</h2>
+  <div id="winMsg"></div>
+  <div class="panel" id="results"></div>
+  <div class="panel" id="finalStats"></div>
+  <div class="row">
+    <button class="btn" id="btnAgain">🔄 Jugar otra vez</button>
+    <button class="btn sec" id="btnMenu2">⚙️ Configuración</button>
+  </div>
+</section>
+
+<script>
+/* =====================================================
+   ✏️ PERSONALIZA AQUÍ (Marca del equipo)
+   ===================================================== */
+const BRAND = {
+  appName: "Memorama Estelar",
+  team: "Equipo Los Cerebritos",
+  phrase: "Una carta a la vez, una victoria a la vez.",
+  theme: "#7c3aed",
+  logoUrl: "icon-192.png"   // logo del equipo (puede ser un link)
+};
+
+const EMOJIS = ["🐶","🐱","🦊","🐼","🐸","🦁","🐵","🐙","🦄","🐢","🐧","🦋","🐝","🐳","🦉","🐞"];
+const TEXTURES = {dots:"Puntos", stripes:"Rayas", checker:"Ajedrez", waves:"Ondas"};
+const PLAYER_COLORS = ["#7c3aed","#e11d48","#0891b2","#ea580c"];
+
+/* ===================== UTILIDADES ===================== */
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+function show(id){
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $(id).classList.add("active");
+}
+function shuffle(a){
+  a = a.slice();
+  for(let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]] = [a[j],a[i]]; }
+  return a;
+}
+const fmt = s => String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
+
+/* ===================== MARCA ===================== */
+document.title = BRAND.appName;
+document.documentElement.style.setProperty("--theme", BRAND.theme);
+document.querySelector('meta[name="theme-color"]').content = BRAND.theme;
+$("wApp").textContent = BRAND.appName;
+$("wTeam").textContent = BRAND.team;
+$("wPhrase").textContent = "“" + BRAND.phrase + "”";
+$("wLogo").src = BRAND.logoUrl;
+$("btnEnter").onclick = () => show("setup");
+$("btnBackW").onclick = () => show("welcome");
+
+/* ===================== CONFIG (guardada) ===================== */
+const cfg = Object.assign({
+  players: 1,
+  names: ["Jugador 1","Jugador 2","Jugador 3","Jugador 4"],
+  pairs: 6,
+  backType: "color",
+  backColor: "#7c3aed",
+  backImage: "",
+  backTexture: "dots",
+  backLogo: BRAND.logoUrl,
+  urls: "",
+  numbered: true
+}, store.get("memo_cfg", {}));
+const saveCfg = () => store.set("memo_cfg", cfg);
+
+function getUrls(){
+  return cfg.urls.split("\n").map(s => s.trim()).filter(s => /^https?:\/\//i.test(s));
+}
+function maxPairs(){ return Math.max(4, EMOJIS.length + getUrls().length); }
+
+/* ---------- Dificultad / parejas ---------- */
+function refreshPairs(){
+  const max = maxPairs();
+  const r = $("pairs");
+  r.max = max;
+  if(cfg.pairs > max) cfg.pairs = max;
+  if(cfg.pairs < 4) cfg.pairs = 4;
+  r.value = cfg.pairs;
+  $("pairsVal").textContent = cfg.pairs;
+  $("pairsHint").textContent = "Mínimo 4 · Máximo disponible " + max;
+  document.querySelectorAll("#diffBtns .chip").forEach(b =>
+    b.classList.toggle("on", Math.min(+b.dataset.d, max) === cfg.pairs));
+}
+$("pairs").oninput = e => { cfg.pairs = +e.target.value; refreshPairs(); saveCfg(); };
+document.querySelectorAll("#diffBtns .chip").forEach(b => b.onclick = () => {
+  cfg.pairs = Math.min(+b.dataset.d, maxPairs());
+  refreshPairs(); saveCfg();
+});
+
+/* ---------- Jugadores ---------- */
+function refreshPlayers(){
+  document.querySelectorAll("#playerBtns .chip").forEach(b =>
+    b.classList.toggle("on", +b.dataset.p === cfg.players));
+  const box = $("names");
+  box.innerHTML = "";
+  if(cfg.players > 1){
+    for(let i=0;i<cfg.players;i++){
+      const l = document.createElement("label");
+      l.textContent = "Nombre del jugador " + (i+1);
+      const inp = document.createElement("input");
+      inp.type = "text"; inp.maxLength = 14; inp.value = cfg.names[i];
+      inp.oninput = () => { cfg.names[i] = inp.value.trim() || ("Jugador "+(i+1)); saveCfg(); };
+      box.append(l, inp);
+    }
+  }
+}
+document.querySelectorAll("#playerBtns .chip").forEach(b => b.onclick = () => {
+  cfg.players = +b.dataset.p; refreshPlayers(); saveCfg();
+});
+
+/* ---------- Reverso ---------- */
+function applyBack(el){
+  el.className = "face back";
+  el.style.background = ""; el.style.backgroundImage = ""; el.innerHTML = "";
+  if(cfg.backType === "color"){
+    el.style.background = cfg.backColor;
+  } else if(cfg.backType === "texture"){
+    el.style.backgroundColor = cfg.backColor;
+    el.classList.add("t-" + cfg.backTexture);
+  } else if(cfg.backType === "image"){
+    el.style.background = cfg.backColor;
+    if(cfg.backImage){
+      const t = new Image();
+      t.onload = () => { el.style.backgroundImage = `url("${cfg.backImage}")`; };
+      t.src = cfg.backImage;   // si falla, queda el color sólido
+    }
+  } else if(cfg.backType === "logo"){
+    el.style.background = cfg.backColor;
+    const im = document.createElement("img");
+    im.src = cfg.backLogo || BRAND.logoUrl;
+    im.onerror = () => { im.remove(); el.textContent = "★"; };
+    el.appendChild(im);
+  }
+}
+function refreshBack(){
+  $("backType").value = cfg.backType;
+  const o = $("backOpts");
+  o.innerHTML = "";
+  const addColor = () => {
+    const l = document.createElement("label"); l.textContent = "Color";
+    const c = document.createElement("input"); c.type = "color"; c.value = cfg.backColor;
+    c.oninput = () => { cfg.backColor = c.value; saveCfg(); drawPreview(); };
+    o.append(l, c);
+  };
+  const addUrl = (label, key) => {
+    const l = document.createElement("label"); l.textContent = label;
+    const i = document.createElement("input"); i.type = "url"; i.value = cfg[key];
+    i.placeholder = "https://...";
+    i.onchange = () => { cfg[key] = i.value.trim(); saveCfg(); drawPreview(); };
+    o.append(l, i);
+  };
+  if(cfg.backType === "color") addColor();
+  if(cfg.backType === "image"){ addUrl("Link de la imagen", "backImage"); addColor(); }
+  if(cfg.backType === "logo"){ addUrl("Link del logo (vacío = logo por defecto)", "backLogo"); addColor(); }
+  if(cfg.backType === "texture"){
+    addColor();
+    const l = document.createElement("label"); l.textContent = "Textura";
+    const s = document.createElement("select");
+    for(const k in TEXTURES){
+      const op = document.createElement("option");
+      op.value = k; op.textContent = TEXTURES[k]; s.appendChild(op);
+    }
+    s.value = cfg.backTexture;
+    s.onchange = () => { cfg.backTexture = s.value; saveCfg(); drawPreview(); };
+    o.append(l, s);
+  }
+  drawPreview();
+}
+function drawPreview(){
+  const p = $("backPreview");
+  p.innerHTML = "";
+  const f = document.createElement("div");
+  p.appendChild(f);
+  applyBack(f);
+}
+$("backType").onchange = e => { cfg.backType = e.target.value; saveCfg(); refreshBack(); };
+
+/* ---------- URLs e imágenes ---------- */
+$("urls").value = cfg.urls;
+$("urls").oninput = e => { cfg.urls = e.target.value; saveCfg(); refreshPairs(); };
+$("numbered").checked = cfg.numbered;
+$("numbered").onchange = e => { cfg.numbered = e.target.checked; saveCfg(); };
+
+/* ===================== JUEGO ===================== */
+let G = null;       // estado de la partida
+let tInt = null;
+
+function recordKey(){ return "memo_record_" + cfg.pairs; }
+
+function startGame(){
+  const faces = [
+    ...getUrls().map(u => ({t:"img", v:u})),
+    ...EMOJIS.map(e => ({t:"emo", v:e}))
+  ].slice(0, cfg.pairs);
+  const deck = shuffle([...faces, ...faces].map((f, i) => ({...f, id: faces.indexOf(f)})));
+  G = {
+    deck, flipped: [], matched: 0, moves: 0, seconds: 0,
+    cur: 0, scores: Array(cfg.players).fill(0), lock: false, over: false
+  };
+  document.body.classList.toggle("nonum", !cfg.numbered);
+  buildBoard();
+  renderHud();
+  clearInterval(tInt);
+  tInt = setInterval(() => { G.seconds++; $("timer").textContent = fmt(G.seconds); }, 1000);
+  show("game");
+}
+
+function buildBoard(){
+  const b = $("board");
+  b.innerHTML = "";
+  const n = G.deck.length;
+  const cols = n <= 16 ? 4 : n <= 20 ? 5 : 6;
+  b.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  G.deck.forEach((c, i) => {
+    const btn = document.createElement("button");
+    btn.className = "card";
+    btn.setAttribute("aria-label", "Carta " + (i+1));
+    const inner = document.createElement("div"); inner.className = "inner";
+    const back = document.createElement("div"); applyBack(back);
+    const front = document.createElement("div"); front.className = "face front";
+    if(c.t === "emo"){
+      front.textContent = c.v;
+    } else {
+      const img = document.createElement("img");
+      img.referrerPolicy = "no-referrer";
+      img.alt = "Carta " + (i+1);
+      img.onerror = () => {
+        front.innerHTML = "";
+        const d = document.createElement("div");
+        d.className = "broken";
+        d.innerHTML = "<i>🖼️🚫</i>Imagen no disponible";
+        front.appendChild(d);
+      };
+      img.src = c.v;
+      front.appendChild(img);
+    }
+    inner.append(back, front);
+    const num = document.createElement("span"); num.className = "num"; num.textContent = i+1;
+    btn.append(inner, num);
+    btn.onclick = () => flip(i, btn);
+    c.el = btn;
+    b.appendChild(btn);
+  });
+}
+
+function renderHud(){
+  $("moves").textContent = G.moves;
+  $("timer").textContent = fmt(G.seconds);
+  const rec = store.get(recordKey(), null);
+  $("record").textContent = rec ? rec + " mov." : "–";
+  // turno
+  const tb = $("turnBanner");
+  if(cfg.players > 1){
+    tb.classList.remove("hide");
+    tb.textContent = "🎯 Turno de: " + cfg.names[G.cur];
+    tb.style.background = PLAYER_COLORS[G.cur];
+  } else {
+    tb.classList.add("hide");
+  }
+  // marcador
+  const sb = $("scoreboard");
+  sb.innerHTML = "";
+  if(cfg.players > 1){
+    for(let i=0;i<cfg.players;i++){
+      const d = document.createElement("div");
+      d.className = "score" + (i === G.cur ? " active" : "");
+      d.style.borderColor = i === G.cur ? PLAYER_COLORS[i] : "transparent";
+      const n = document.createElement("span"); n.textContent = cfg.names[i];
+      const p = document.createElement("b"); p.textContent = G.scores[i];
+      d.append(n, p);
+      sb.appendChild(d);
+    }
+  }
+}
+
+function flip(i, el){
+  if(!G || G.lock || G.over) return;
+  const c = G.deck[i];
+  if(c.done || G.flipped.includes(i)) return;
+  el.classList.add("flip");
+  G.flipped.push(i);
+  if(G.flipped.length < 2) return;
+
+  G.moves++;
+  G.lock = true;
+  const [a, b] = G.flipped.map(k => G.deck[k]);
+  if(a.id === b.id && a.t === b.t){
+    // ✅ Pareja: conserva el turno y suma punto
+    a.done = b.done = true;
+    a.el.classList.add("done"); b.el.classList.add("done");
+    G.scores[G.cur]++;
+    G.matched++;
+    G.flipped = [];
+    G.lock = false;
+    renderHud();
+    if(G.matched === cfg.pairs) finish();
+  } else {
+    // ❌ Falla: se voltean y pasa el turno
+    setTimeout(() => {
+      a.el.classList.remove("flip"); b.el.classList.remove("flip");
+      G.flipped = [];
+      if(cfg.players > 1) G.cur = (G.cur + 1) % cfg.players;
+      G.lock = false;
+      renderHud();
+    }, 800);
+    renderHud();
+  }
+}
+
+function finish(){
+  G.over = true;
+  clearInterval(tInt);
+  // récord (mínimo de movimientos por cantidad de parejas)
+  const rec = store.get(recordKey(), null);
+  let newRec = false;
+  if(rec === null || G.moves < rec){ store.set(recordKey(), G.moves); newRec = true; }
+
+  setTimeout(() => {
+    const res = $("results");
+    res.innerHTML = "";
+    const max = Math.max(...G.scores);
+    const winners = G.scores.map((s,i)=>s===max?i:-1).filter(i=>i>=0);
+    if(cfg.players === 1){
+      $("winMsg").textContent = "¡Lo lograste en " + fmt(G.seconds) + "!";
+    } else if(winners.length > 1){
+      $("winMsg").textContent = "🤝 ¡Empate entre " + winners.map(i=>cfg.names[i]).join(" y ") + "!";
+    } else {
+      $("winMsg").textContent = "🏆 ¡Ganador: " + cfg.names[winners[0]] + "!";
+    }
+    if(cfg.players > 1){
+      const order = G.scores.map((s,i)=>i).sort((x,y)=>G.scores[y]-G.scores[x]);
+      order.forEach(i => {
+        const r = document.createElement("div");
+        r.className = "res" + (winners.includes(i) ? " win" : "");
+        const n = document.createElement("span"); n.textContent = cfg.names[i];
+        const p = document.createElement("span"); p.textContent = G.scores[i] + " pts";
+        r.append(n, p);
+        res.appendChild(r);
+      });
+    } else {
+      res.classList.add("hide");
+    }
+    if(cfg.players > 1) res.classList.remove("hide");
+    $("finalStats").innerHTML =
+      "⏱️ Tiempo final: <b>" + fmt(G.seconds) + "</b><br>" +
+      "👆 Movimientos: <b>" + G.moves + "</b><br>" +
+      "🃏 Parejas: <b>" + cfg.pairs + "</b>" +
+      (newRec ? "<br>🏆 <b>¡Nuevo récord!</b>" : "");
+    show("end");
+  }, 700);
+}
+
+/* ===================== BOTONES ===================== */
+$("btnStart").onclick = startGame;
+$("btnRestart").onclick = startGame;
+$("btnAgain").onclick = startGame;
+$("btnMenu").onclick = () => { clearInterval(tInt); show("setup"); };
+$("btnMenu2").onclick = () => show("setup");
+
+/* ===================== INICIO ===================== */
+refreshPairs();
+refreshPlayers();
+refreshBack();
+
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
